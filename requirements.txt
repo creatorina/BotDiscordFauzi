@@ -3,6 +3,5 @@ discord-py
 python-dotenv
 tlgbotfwk
 aiohttp
-praw
 apscheduler
-requests
+pytz
