@@ -5,14 +5,14 @@ import random
 import os
 import discord
 
-# Daftar ucapan selamat pagi
+# Daftar ucapan selamat pagi (diperbaiki, ditambah koma antar item)
 greetings = [
     "Selamat pagi, {mention}! Semoga harimu menyenangkan ☀️",
     "Hai {mention}, semangat pagi ya! 💪",
     "Pagi {mention}! Jangan lupa sarapan 🍞",
     "Yo {mention}, good morning! ☕",
-    "Selamat pagi {mention}, waktunya produktif! ✨"
-    "Halo {mention}, Sii paling morning person ❤️😍😍"
+    "Selamat pagi {mention}, waktunya produktif! ✨",
+    "Halo {mention}, Sii paling morning person ❤️😍😍",
     "Selamat pagi {mention}! Semoga harimu penuh energi 💪",
     "Hai {mention}, waktunya bangkit dan bersinar ☀️",
     "Pagi {mention}! Hari ini adalah kesempatan baru ✨",
@@ -31,11 +31,10 @@ greetings = [
     "Have a nice day, {mention}! 🌟"
 ]
 
-# Fungsi setup yang dipanggil dari main.py
+# Fungsi setup untuk scheduler
 def setup(bot):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
 
-    # Gunakan trigger terpisah agar job async didukung sepenuhnya
     async def greet_members():
         print("⏰ Scheduler aktif, mulai menyapa...")
 
@@ -63,15 +62,14 @@ def setup(bot):
             selected_members = random.sample(
                 online_members, min(len(online_members), 3)
             )
-            mentions = ", ".join([member.mention for member in selected_members])
-            greeting = f"Selamat pagi {mentions}! Semoga harimu menyenangkan ☀️"
-            await channel.send(greeting)
+            mentions = ", ".join([m.mention for m in selected_members])
+            random_greeting = random.choice(greetings)
+            message = random_greeting.replace("{mention}", mentions)
+            await channel.send(message)
             print(f"📣 Menyapa: {[m.display_name for m in selected_members]}")
         else:
             print("😴 Tidak ada member online.")
 
-
-    # Tambahkan job async dengan trigger interval
     scheduler.add_job(
         greet_members,
         CronTrigger(hour=8, minute=0, timezone=pytz.timezone("Asia/Jakarta"))
