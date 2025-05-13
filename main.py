@@ -7,7 +7,6 @@ from bot.events import MyEvents
 from bot import scheduler
 
 from bot.commands.general import General
-from bot.commands.game import Game
 from bot.commands.freesteam import FreeSteam
 from bot.commands.weather import Weather
 

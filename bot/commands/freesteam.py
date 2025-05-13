@@ -1,44 +1,73 @@
-import os
 import discord
 import aiohttp
-from discord.ext import commands, tasks
+import asyncio
+import os
+from dotenv import load_dotenv
 
-class FreeSteam(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.channel_id = int("1136822338810290308")  # Ganti jika perlu
-        self.checked_apps = set()
-        self.check_free_games.start()
+load_dotenv()  # Memuat BOT_TOKEN dari .env
 
-    def cog_unload(self):
-        self.check_free_games.cancel()
+TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = 1136822338810290308  # Ganti dengan ID channel Discord kamu
 
-    @tasks.loop(minutes=60)
-    async def check_free_games(self):
-        await self.bot.wait_until_ready()
-        channel = self.bot.get_channel(self.channel_id)
-        if not channel:
-            print("❌ Channel tidak ditemukan.")
-            return
+intents = discord.Intents.default()
+intents.guilds = True
+intents.messages = True
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://www.gamerpower.com/api/giveaways?platform=steam&type=game") as resp:
-                    if resp.status != 200:
-                        print(f"❌ Gagal mengambil data giveaway: {resp.status}")
-                        return
-                    data = await resp.json()
+client = discord.Client(intents=intents)
 
-                    for game in data:
-                        if game["id"] in self.checked_apps:
-                            continue
-                        self.checked_apps.add(game["id"])
-                        title = game["title"]
-                        link = game["open_giveaway_url"]
-                        await channel.send(f"@here 🎁 Game gratis baru di Steam: **{title}**\n🔗 {link}")
+async def cek_game_gratis(channel: discord.TextChannel):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://www.gamerpower.com/api/giveaways") as response:
+            if response.status != 200:
+                await channel.send("Gagal mengambil data dari GamerPower.")
+                return
 
-        except Exception as e:
-            print(f"❌ Terjadi kesalahan saat mengambil data giveaway: {e}")
+            data = await response.json()
 
-def setup(bot):
-    bot.add_cog(FreeSteam(bot))
+            # Filter hanya game Steam atau Epic
+            free_games = [
+                game for game in data
+                if game["platforms"] and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
+            ]
+
+            if not free_games:
+                await channel.send("Tidak ada game gratis saat ini.")
+                return
+
+            for game in free_games[:3]:  # Maks 3 game
+                platform = game["platforms"]
+
+                # Default icon
+                platform_icon = None
+                if "Steam" in platform:
+                    platform_icon = "https://cdn.patchbot.io/games/109/steam_sm.webp"
+                elif "Epic" in platform:
+                    platform_icon = "https://cdn.patchbot.io/games/107/epic_games_sm.webp"
+
+                embed = discord.Embed(
+                    title=game["title"],
+                    url=game["open_giveaway_url"],
+                    description=game["description"],
+                    color=discord.Color.green()
+                )
+
+                if platform_icon:
+                    embed.set_author(name=platform, icon_url=platform_icon)
+
+                embed.set_image(url=game["image"])
+                embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
+
+                await channel.send("@here", embed=embed)
+                await asyncio.sleep(1)  # Delay untuk hindari spam
+
+@client.event
+async def on_ready():
+    print(f"{client.user} sudah login dan siap mengirim notifikasi.")
+    channel = client.get_channel(CHANNEL_ID)
+    if not channel:
+        print("❌ Channel tidak ditemukan.")
+        return
+    await cek_game_gratis(channel)
+    await client.close()  # Selesai, keluar
+
+client.run(TOKEN)
