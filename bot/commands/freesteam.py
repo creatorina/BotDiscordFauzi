@@ -4,10 +4,11 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # Memuat BOT_TOKEN dari .env
+load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = 1136822338810290308  # Ganti dengan ID channel Discord kamu
+CHANNEL_ID = 1136822338810290308
+SENT_FILE = "sent_games.txt"
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -15,29 +16,40 @@ intents.messages = True
 
 client = discord.Client(intents=intents)
 
+def load_sent_games():
+    if not os.path.exists(SENT_FILE):
+        return set()
+    with open(SENT_FILE, "r") as f:
+        return set(line.strip() for line in f.readlines())
+
+def save_sent_game(game_id):
+    with open(SENT_FILE, "a") as f:
+        f.write(f"{game_id}\n")
+
 async def cek_game_gratis(channel: discord.TextChannel):
+    sent_games = load_sent_games()
+
     async with aiohttp.ClientSession() as session:
         async with session.get("https://www.gamerpower.com/api/giveaways") as response:
             if response.status != 200:
-                await channel.send("Gagal mengambil data dari GamerPower.")
+                print("❌ Gagal mengambil data dari GamerPower.")
                 return
 
             data = await response.json()
 
-            # Filter hanya game Steam atau Epic
             free_games = [
                 game for game in data
                 if game["platforms"] and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
+                and str(game["id"]) not in sent_games
             ]
 
             if not free_games:
-                await channel.send("Tidak ada game gratis saat ini.")
+                print("✅ Tidak ada game gratis baru.")
                 return
 
-            for game in free_games[:3]:  # Maks 3 game
+            for game in free_games[:3]:
                 platform = game["platforms"]
 
-                # Default icon
                 platform_icon = None
                 if "Steam" in platform:
                     platform_icon = "https://cdn.patchbot.io/games/109/steam_sm.webp"
@@ -58,16 +70,20 @@ async def cek_game_gratis(channel: discord.TextChannel):
                 embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
 
                 await channel.send("@here", embed=embed)
-                await asyncio.sleep(1)  # Delay untuk hindari spam
+                save_sent_game(str(game["id"]))
+                await asyncio.sleep(1)
 
 @client.event
 async def on_ready():
-    print(f"{client.user} sudah login dan siap mengirim notifikasi.")
+    print(f"✅ {client.user} sudah login dan siap.")
     channel = client.get_channel(CHANNEL_ID)
     if not channel:
         print("❌ Channel tidak ditemukan.")
         return
-    await cek_game_gratis(channel)
-    await client.close()  # Selesai, keluar
+
+    # Cek setiap 6 jam (21600 detik)
+    while True:
+        await cek_game_gratis(channel)
+        await asyncio.sleep(21600)
 
 client.run(TOKEN)
