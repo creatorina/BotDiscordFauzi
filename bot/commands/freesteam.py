@@ -39,27 +39,28 @@ async def cek_game_gratis(channel: discord.TextChannel):
 
             free_games = [
                 game for game in data
-                if game["platforms"] and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
+                if game.get("platforms") and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
                 and str(game["id"]) not in sent_games
+                and game.get("worth") == "$0.00"
             ]
 
             if not free_games:
-                print("✅ Tidak ada game gratis baru.")
+                print("✅ Tidak ada game gratis baru dengan diskon 100%.")
                 return
 
-            for game in free_games[:3]:
+            for game in free_games[:4]:
                 platform = game["platforms"]
 
                 platform_icon = None
                 if "Steam" in platform:
-                    platform_icon = "https://cdn.patchbot.io/games/109/steam_sm.webp"
+                    platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
                 elif "Epic" in platform:
-                    platform_icon = "https://cdn.patchbot.io/games/107/epic_games_sm.webp"
+                    platform_icon = "https://upload.wikimedia.org/wikipedia/commons/3/31/Epic_Games_logo.png"
 
                 embed = discord.Embed(
                     title=game["title"],
                     url=game["open_giveaway_url"],
-                    description=game["description"],
+                    description=game["description"] or "Tidak ada deskripsi.",
                     color=discord.Color.green()
                 )
 
@@ -69,7 +70,7 @@ async def cek_game_gratis(channel: discord.TextChannel):
                 embed.set_image(url=game["image"])
                 embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
 
-                await channel.send("@here", embed=embed)
+                await channel.send("@here ada info game gratis pc!", embed=embed)
                 save_sent_game(str(game["id"]))
                 await asyncio.sleep(1)
 
