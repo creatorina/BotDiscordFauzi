@@ -72,7 +72,7 @@ def setup(bot):
 
     scheduler.add_job(
         greet_members,
-        CronTrigger(hour=8, minute=0, timezone=pytz.timezone("Asia/Jakarta"))
+        CronTrigger(hour=7, minute=0, timezone=pytz.timezone("Asia/Jakarta"))
     )
 
     scheduler.start()
