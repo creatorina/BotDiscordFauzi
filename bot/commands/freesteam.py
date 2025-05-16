@@ -50,17 +50,38 @@ class FreeSteam(commands.Cog):
 
                 data = await response.json()
 
+                print("🎮 Cek game dari Steam/Epic:")
+                for game in data:
+                    if game.get("platforms") and ("Steam" in game["platforms"] or "Epic" in game["platforms"]):
+                        print(f"- {game['title']} | Worth: {game.get('worth')}")
+
                 return [
                     game for game in data
                     if game.get("platforms") and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
                     and str(game["id"]) not in sent_games
-                    and game.get("worth") == "$0.00"
+                    and game.get("worth", "").strip().startswith("$0.00")
                 ]
 
-    async def kirim_game_embed(self, game, channel):
+    @tasks.loop(seconds=CHECK_INTERVAL)
+    async def check_free_games(self):
+        await self.bot.wait_until_ready()
+        channel = self.bot.get_channel(CHANNEL_ID)
+        if not channel:
+            print("❌ Channel tidak ditemukan.")
+            return
+
+        free_games = await self.fetch_free_games()
+
+        if not free_games:
+            print("✅ Tidak ada game gratis baru.")
+            return
+
+        for game in free_games[:4]:
+            await self.kirim_embed_game(channel, game)
+
+    async def kirim_embed_game(self, channel, game):
         platform = game["platforms"]
         platform_icon = None
-
         if "Steam" in platform:
             platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
         elif "Epic" in platform:
@@ -83,35 +104,19 @@ class FreeSteam(commands.Cog):
         self.save_sent_game(str(game["id"]))
         await asyncio.sleep(1)
 
-    @tasks.loop(seconds=CHECK_INTERVAL)
-    async def check_free_games(self):
-        await self.bot.wait_until_ready()
-        channel = self.bot.get_channel(CHANNEL_ID)
-        if not channel:
-            print("❌ Channel tidak ditemukan.")
-            return
-
-        free_games = await self.fetch_free_games()
-
-        if not free_games:
-            print("✅ Tidak ada game gratis baru.")
-            return
-
-        for game in free_games:
-            await self.kirim_game_embed(game, channel)
-
     @commands.command()
     async def cekgame(self, ctx):
-        """Cek manual apakah ada game gratis baru."""
+        """Cek manual apakah ada game gratis baru"""
         free_games = await self.fetch_free_games()
         if not free_games:
-            await ctx.send("✅ Tidak ada game gratis baru dengan diskon 100%.")
+            await ctx.send("✅ maaf Tidak ada game gratis .")
             return
+
         await ctx.send(f"🎉 Ditemukan {len(free_games)} game gratis baru! Akan dikirim ke channel.")
         channel = self.bot.get_channel(CHANNEL_ID)
         if channel:
-            for game in free_games:
-                await self.kirim_game_embed(game, channel)
+            for game in free_games[:4]:
+                await self.kirim_embed_game(channel, game)
 
 async def setup(bot):
     await bot.add_cog(FreeSteam(bot))
