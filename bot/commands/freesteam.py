@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands, tasks
 import aiohttp
-import asyncio
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -9,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SENT_FILE = "sent_games.txt"
-CHECK_INTERVAL = 21600  # 6 jam
+CHECK_INTERVAL = 3600  # Cek tiap 1 jam
 CHANNEL_ID = 1136822338810290308
 
 class FreeSteam(commands.Cog):
@@ -36,7 +35,7 @@ class FreeSteam(commands.Cog):
             now = datetime.now()
             if file_time.date() != now.date():
                 os.remove(SENT_FILE)
-                print("🗑️ File sent_games.txt dihapus karena sudah hari baru.")
+                print("🗑️ sent_games.txt dihapus (hari baru).")
 
     async def fetch_free_games(self):
         self.clear_sent_games_if_new_day()
@@ -50,16 +49,14 @@ class FreeSteam(commands.Cog):
 
                 data = await response.json()
 
-                print("🎮 Cek game dari Steam/Epic:")
-                for game in data:
-                    if game.get("platforms") and ("Steam" in game["platforms"] or "Epic" in game["platforms"]):
-                        print(f"- {game['title']} | Worth: {game.get('worth')}")
-
                 return [
                     game for game in data
-                    if game.get("platforms") and ("Steam" in game["platforms"] or "Epic" in game["platforms"])
+                    if game.get("type") == "Game"
+                    and game.get("worth", "").startswith("$")
+                    and any(p in game.get("platforms", "") for p in ["Steam", "Epic"])
                     and str(game["id"]) not in sent_games
-                    and game.get("worth", "").strip().startswith("$0.00")
+                    and "steam key" not in game.get("description", "").lower()
+                    and "steam key" not in game.get("title", "").lower()
                 ]
 
     @tasks.loop(seconds=CHECK_INTERVAL)
@@ -71,17 +68,18 @@ class FreeSteam(commands.Cog):
             return
 
         free_games = await self.fetch_free_games()
-
         if not free_games:
             print("✅ Tidak ada game gratis baru.")
             return
 
-        for game in free_games[:4]:
-            await self.kirim_embed_game(channel, game)
+        for game in free_games:
+            await self.send_game(channel, game)
+            self.save_sent_game(str(game["id"]))
 
-    async def kirim_embed_game(self, channel, game):
+    async def send_game(self, channel, game):
         platform = game["platforms"]
         platform_icon = None
+
         if "Steam" in platform:
             platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
         elif "Epic" in platform:
@@ -93,30 +91,25 @@ class FreeSteam(commands.Cog):
             description=game.get("description", "Tidak ada deskripsi."),
             color=discord.Color.green()
         )
-
         if platform_icon:
             embed.set_author(name=platform, icon_url=platform_icon)
-
         embed.set_image(url=game["image"])
         embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
 
-        await channel.send("@here ada info game gratis PC!", embed=embed)
-        self.save_sent_game(str(game["id"]))
-        await asyncio.sleep(1)
+        await channel.send("@here ada game gratis PC!", embed=embed)
 
     @commands.command()
     async def cekgame(self, ctx):
-        """Cek manual apakah ada game gratis baru"""
+        """Cek manual game gratis"""
         free_games = await self.fetch_free_games()
         if not free_games:
-            await ctx.send("✅ maaf Tidak ada game gratis .")
+            await ctx.send("✅ Tidak ada game gratis baru.")
             return
 
-        await ctx.send(f"🎉 Ditemukan {len(free_games)} game gratis baru! Akan dikirim ke channel.")
-        channel = self.bot.get_channel(CHANNEL_ID)
-        if channel:
-            for game in free_games[:4]:
-                await self.kirim_embed_game(channel, game)
+        await ctx.send(f"🎮 Menemukan {len(free_games)} game gratis:")
+        for game in free_games:
+            await self.send_game(ctx.channel, game)
+            self.save_sent_game(str(game["id"]))
 
 async def setup(bot):
     await bot.add_cog(FreeSteam(bot))
