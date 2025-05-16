@@ -57,6 +57,32 @@ class FreeSteam(commands.Cog):
                     and game.get("worth") == "$0.00"
                 ]
 
+    async def kirim_game_embed(self, game, channel):
+        platform = game["platforms"]
+        platform_icon = None
+
+        if "Steam" in platform:
+            platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
+        elif "Epic" in platform:
+            platform_icon = "https://upload.wikimedia.org/wikipedia/commons/3/31/Epic_Games_logo.png"
+
+        embed = discord.Embed(
+            title=game["title"],
+            url=game["open_giveaway_url"],
+            description=game.get("description", "Tidak ada deskripsi."),
+            color=discord.Color.green()
+        )
+
+        if platform_icon:
+            embed.set_author(name=platform, icon_url=platform_icon)
+
+        embed.set_image(url=game["image"])
+        embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
+
+        await channel.send("@here ada info game gratis PC!", embed=embed)
+        self.save_sent_game(str(game["id"]))
+        await asyncio.sleep(1)
+
     @tasks.loop(seconds=CHECK_INTERVAL)
     async def check_free_games(self):
         await self.bot.wait_until_ready()
@@ -71,30 +97,8 @@ class FreeSteam(commands.Cog):
             print("✅ Tidak ada game gratis baru.")
             return
 
-        for game in free_games[:4]:
-            platform = game["platforms"]
-            platform_icon = None
-            if "Steam" in platform:
-                platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
-            elif "Epic" in platform:
-                platform_icon = "https://upload.wikimedia.org/wikipedia/commons/3/31/Epic_Games_logo.png"
-
-            embed = discord.Embed(
-                title=game["title"],
-                url=game["open_giveaway_url"],
-                description=game.get("description", "Tidak ada deskripsi."),
-                color=discord.Color.green()
-            )
-
-            if platform_icon:
-                embed.set_author(name=platform, icon_url=platform_icon)
-
-            embed.set_image(url=game["image"])
-            embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
-
-            await channel.send("@here ada info game gratis PC!", embed=embed)
-            self.save_sent_game(str(game["id"]))
-            await asyncio.sleep(1)
+        for game in free_games:
+            await self.kirim_game_embed(game, channel)
 
     @commands.command()
     async def cekgame(self, ctx):
@@ -106,30 +110,8 @@ class FreeSteam(commands.Cog):
         await ctx.send(f"🎉 Ditemukan {len(free_games)} game gratis baru! Akan dikirim ke channel.")
         channel = self.bot.get_channel(CHANNEL_ID)
         if channel:
-            for game in free_games[:4]:
-                platform = game["platforms"]
-                platform_icon = None
-                if "Steam" in platform:
-                    platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
-                elif "Epic" in platform:
-                    platform_icon = "https://upload.wikimedia.org/wikipedia/commons/3/31/Epic_Games_logo.png"
-
-                embed = discord.Embed(
-                    title=game["title"],
-                    url=game["open_giveaway_url"],
-                    description=game.get("description", "Tidak ada deskripsi."),
-                    color=discord.Color.green()
-                )
-
-                if platform_icon:
-                    embed.set_author(name=platform, icon_url=platform_icon)
-
-                embed.set_image(url=game["image"])
-                embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
-
-                await channel.send("@here", embed=embed)
-                self.save_sent_game(str(game["id"]))
-                await asyncio.sleep(1)
+            for game in free_games:
+                await self.kirim_game_embed(game, channel)
 
 async def setup(bot):
     await bot.add_cog(FreeSteam(bot))
