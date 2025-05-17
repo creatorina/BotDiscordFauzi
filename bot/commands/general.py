@@ -7,15 +7,12 @@ class General(commands.Cog):
 
     @commands.command()
     async def hello(self, ctx):
-        await ctx.send("Halo! Aku bot 😄")
+        await ctx.send("Halo! Aku bot dan sudah siap 😄")
 
     @commands.command()
-    async def faq(self, ctx):
+    async def bantuan(self, ctx):
         await ctx.send(
-            "**FAQ Bot**\n"
-            "- `!hello`: Sapa bot\n"
-            "- `!tebak`: Main tebak kata\n"
+            "**Command Bot**\n"
+            "- `!cekgame`: info game gratis\n"
             "- `!cuaca <kota>`: Info cuaca\n"
-            "- `!meme`: Kirim meme of the day\n"
-            "- `!faq`: Lihat bantuan\n"
         )

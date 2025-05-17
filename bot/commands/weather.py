@@ -1,35 +1,43 @@
-import requests
+import discord
 from discord.ext import commands
+import aiohttp
+import os
 
 class Weather(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.api_key = 'your_weather_api_key'  # Ganti dengan API key dari OpenWeatherMap
+        self.api_key = os.getenv("WEATHER_API_KEY")
 
-    @commands.command(name="weather")
-    async def weather(self, ctx, city: str):
-        base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={self.api_key}&units=metric&lang=id"
-        response = requests.get(base_url)
-        data = response.json()
+    @commands.command()
+    async def cuaca(self, ctx, *, kota: str):
+        """Cek cuaca saat ini untuk kota tertentu"""
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={kota}&appid={self.api_key}&units=metric&lang=id"
 
-        if data["cod"] == "404":
-            await ctx.send("Kota tidak ditemukan, coba periksa ejaan atau nama kota.")
-        else:
-            main = data["main"]
-            weather_description = data["weather"][0]["description"]
-            temperature = main["temp"]
-            pressure = main["pressure"]
-            humidity = main["humidity"]
-            city_name = data["name"]
-            country = data["sys"]["country"]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    await ctx.send("❌ Gagal mengambil data cuaca. Pastikan nama kota benar.")
+                    return
 
-            # Kirim hasil cuaca ke channel
-            weather_message = (f"Cuaca di {city_name}, {country}:\n"
-                               f"Deskripsi: {weather_description}\n"
-                               f"Suhu: {temperature}°C\n"
-                               f"Tekanan: {pressure} hPa\n"
-                               f"Humidity: {humidity}%")
-            await ctx.send(weather_message)
+                data = await response.json()
 
-def setup(bot):
-    bot.add_cog(Weather(bot))
+        nama_kota = data["name"]
+        suhu = data["main"]["temp"]
+        cuaca = data["weather"][0]["description"].capitalize()
+        kelembapan = data["main"]["humidity"]
+        angin = data["wind"]["speed"]
+
+        embed = discord.Embed(
+            title=f"🌤️ Cuaca di {nama_kota}",
+            description=f"{cuaca}",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="🌡️ Suhu", value=f"{suhu}°C", inline=True)
+        embed.add_field(name="💧 Kelembapan", value=f"{kelembapan}%", inline=True)
+        embed.add_field(name="💨 Kecepatan Angin", value=f"{angin} m/s", inline=True)
+        embed.set_footer(text="Data dari OpenWeatherMap")
+
+        await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Weather(bot))
