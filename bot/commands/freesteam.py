@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands, tasks
 import aiohttp
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,9 +28,7 @@ class FreeSteam(commands.Cog):
         with open(SENT_FILE, "a") as f:
             f.write(f"{game_id}\n")
 
-
     async def fetch_free_games(self):
-        self.clear_sent_games_if_new_day()
         sent_games = self.load_sent_games()
 
         async with aiohttp.ClientSession() as session:
@@ -62,7 +59,7 @@ class FreeSteam(commands.Cog):
 
         free_games = await self.fetch_free_games()
         if not free_games:
-            print("✅ Tidak ada game gratis baru.")
+            print("✅ Tidak ada Update game gratis.")
             return
 
         for game in free_games:
