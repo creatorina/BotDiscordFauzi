@@ -29,13 +29,6 @@ class FreeSteam(commands.Cog):
         with open(SENT_FILE, "a") as f:
             f.write(f"{game_id}\n")
 
-    def clear_sent_games_if_new_day(self):
-        if os.path.exists(SENT_FILE):
-            file_time = datetime.fromtimestamp(os.path.getmtime(SENT_FILE))
-            now = datetime.now()
-            if file_time.date() != now.date():
-                os.remove(SENT_FILE)
-                print("🗑️ sent_games.txt dihapus (hari baru).")
 
     async def fetch_free_games(self):
         self.clear_sent_games_if_new_day()
@@ -81,9 +74,9 @@ class FreeSteam(commands.Cog):
         platform_icon = None
 
         if "Steam" in platform:
-            platform_icon = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/753/7c6e4184d42595e2daae64e147a3f40e9eaf09bb.jpg"
+            platform_icon = "https://cdn.patchbot.io/games/109/steam_sm.webp"
         elif "Epic" in platform:
-            platform_icon = "https://upload.wikimedia.org/wikipedia/commons/3/31/Epic_Games_logo.png"
+            platform_icon = "https://cdn.patchbot.io/games/107/epic_games_sm.webp"
 
         embed = discord.Embed(
             title=game["title"],
@@ -96,14 +89,14 @@ class FreeSteam(commands.Cog):
         embed.set_image(url=game["image"])
         embed.set_footer(text=f"Platform: {platform} | Berakhir: {game['end_date']}")
 
-        await channel.send("@here ada game gratis PC!", embed=embed)
+        await channel.send("@here Buruan Claim game gratis!", embed=embed)
 
     @commands.command()
     async def cekgame(self, ctx):
         """Cek manual game gratis"""
         free_games = await self.fetch_free_games()
         if not free_games:
-            await ctx.send("✅ Tidak ada game gratis baru.")
+            await ctx.send("✅ Tidak ada game gratis Boss.")
             return
 
         await ctx.send(f"🎮 Menemukan {len(free_games)} game gratis:")
